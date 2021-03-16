@@ -20,7 +20,7 @@ const tokenList = [
       ],
       numberFields = ['id', 'width', 'height', 'aspect_ratio',
         'comment_count', 'score', 'upvotes', 'downvotes',
-        'faves'],
+        'faves', 'tag_count'],
       dateFields = ['created_at'],
       literalFields = ['tags', 'orig_sha512_hash', 'sha512_hash',
         'score', 'uploader', 'source_url', 'description'],
@@ -37,6 +37,7 @@ const tokenList = [
         height: 'data-height',
         aspect_ratio: 'data-aspect-ratio',
         comment_count: 'data-comment-count',
+        tag_count: 'data-tag-count',
         source_url: 'data-source-url',
         faves: 'data-faves',
         sha512_hash: 'data-sha512',
@@ -487,7 +488,7 @@ function generateLexArray(searchStr, options) {
       fuzz = null,
       lparenCtr = 0,
       negate = false,
-      groupNegate = false,
+      groupNegate = [],
       tokenStack = [],
       boostFuzzStr = '';
 
@@ -553,7 +554,7 @@ function generateLexArray(searchStr, options) {
             }
             else {
               opQueue.unshift('lparen');
-              groupNegate = negate;
+              groupNegate.push(negate);
               negate = false;
             }
             break;
@@ -572,10 +573,9 @@ function generateLexArray(searchStr, options) {
                 }
                 tokenStack.push(op);
               }
-            }
-            if (groupNegate) {
-              tokenStack.push('not_op');
-              groupNegate = false;
+              if (groupNegate.length > 0 && groupNegate.pop()) {
+                tokenStack.push('not_op');
+              }
             }
             break;
           case 'fuzz':

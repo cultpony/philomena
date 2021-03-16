@@ -9,7 +9,7 @@ defmodule Philomena.Users.User do
   alias Philomena.Schema.Search
 
   alias Philomena.Filters.Filter
-  alias Philomena.UserLinks.UserLink
+  alias Philomena.ArtistLinks.ArtistLink
   alias Philomena.Badges
   alias Philomena.Notifications.UnreadNotification
   alias Philomena.Galleries.Gallery
@@ -24,9 +24,9 @@ defmodule Philomena.Users.User do
   @derive {Phoenix.Param, key: :slug}
   @derive {Inspect, except: [:password]}
   schema "users" do
-    has_many :links, UserLink
-    has_many :verified_links, UserLink, where: [aasm_state: "verified"]
-    has_many :public_links, UserLink, where: [public: true, aasm_state: "verified"]
+    has_many :links, ArtistLink
+    has_many :verified_links, ArtistLink, where: [aasm_state: "verified"]
+    has_many :public_links, ArtistLink, where: [public: true, aasm_state: "verified"]
     has_many :galleries, Gallery, foreign_key: :creator_id
     has_many :awards, Badges.Award
     has_many :unread_notifications, UnreadNotification
@@ -48,12 +48,12 @@ defmodule Philomena.Users.User do
     field :password, :string, virtual: true
     field :encrypted_password, :string
     field :hashed_password, :string, source: :encrypted_password
-    field :confirmed_at, :naive_datetime
+    field :confirmed_at, :utc_datetime
     field :otp_required_for_login, :boolean
     field :authentication_token, :string
     field :failed_attempts, :integer
     # field :unlock_token, :string
-    field :locked_at, :naive_datetime
+    field :locked_at, :utc_datetime
     field :encrypted_otp_secret, :string
     field :encrypted_otp_secret_iv, :string
     field :encrypted_otp_secret_salt, :string
@@ -90,7 +90,7 @@ defmodule Philomena.Users.User do
     field :no_spoilered_in_watched, :boolean, default: false
     field :watched_images_query_str, :string, default: ""
     field :watched_images_exclude_str, :string, default: ""
-    field :use_centered_layout, :boolean, default: false
+    field :use_centered_layout, :boolean, default: true
     field :personal_title, :string
     field :show_hidden_items, :boolean, default: false
     field :hide_vote_counts, :boolean, default: false
@@ -111,12 +111,13 @@ defmodule Philomena.Users.User do
     field :watched_tag_list, :string, virtual: true
 
     # Other stuff
-    field :last_donation_at, :naive_datetime
-    field :last_renamed_at, :naive_datetime
-    field :deleted_at, :naive_datetime
+    field :last_donation_at, :utc_datetime
+    field :last_renamed_at, :utc_datetime
+    field :deleted_at, :utc_datetime
     field :scratchpad, :string
     field :secondary_role, :string
     field :hide_default_role, :boolean, default: false
+    field :senior_staff, :boolean, default: false
 
     # For avatar validation/persistence
     field :avatar_width, :integer, virtual: true
@@ -129,7 +130,7 @@ defmodule Philomena.Users.User do
     # For mod stuff
     field :role_map, :any, virtual: true
 
-    timestamps(inserted_at: :created_at)
+    timestamps(inserted_at: :created_at, type: :utc_datetime)
   end
 
   @doc """
@@ -160,7 +161,9 @@ defmodule Philomena.Users.User do
   defp validate_email(changeset) do
     changeset
     |> validate_required([:email])
-    |> validate_format(:email, ~r/^[^\s]+@[^\s]+$/, message: "must have the @ sign and no spaces")
+    |> validate_format(:email, ~r/^[^\s]+@[^\s]+\.[^\s]+$/,
+      message: "must be valid (e.g., user@example.com)"
+    )
     |> validate_length(:email, max: 160)
     |> unsafe_validate_unique(:email, Philomena.Repo)
   end
@@ -209,7 +212,7 @@ defmodule Philomena.Users.User do
   Confirms the account by setting `confirmed_at`.
   """
   def confirm_changeset(user) do
-    now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
     change(user, confirmed_at: now)
   end
 
@@ -253,7 +256,7 @@ defmodule Philomena.Users.User do
   end
 
   def lock_changeset(user) do
-    locked_at = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+    locked_at = DateTime.utc_now() |> DateTime.truncate(:second)
 
     change(user, locked_at: locked_at)
   end
@@ -268,7 +271,7 @@ defmodule Philomena.Users.User do
 
   def update_changeset(user, attrs, roles) do
     user
-    |> cast(attrs, [:name, :email, :role, :secondary_role, :hide_default_role])
+    |> cast(attrs, [:name, :email, :role, :secondary_role, :hide_default_role, :senior_staff])
     |> validate_required([:name, :email, :role])
     |> validate_inclusion(:role, ["user", "assistant", "moderator", "admin"])
     |> put_assoc(:roles, roles)
@@ -311,7 +314,13 @@ defmodule Philomena.Users.User do
       :watched_images_exclude_str,
       :use_centered_layout,
       :hide_vote_counts,
-      :comments_newest_first
+      :comments_newest_first,
+      :watch_on_reply,
+      :watch_on_upload,
+      :watch_on_new_topic,
+      :comments_always_jump_to_last,
+      :messages_newest_first,
+      :show_sidebar_and_watched_images
     ])
     |> validate_required([
       :images_per_page,
@@ -323,12 +332,18 @@ defmodule Philomena.Users.User do
       :theme,
       :no_spoilered_in_watched,
       :use_centered_layout,
-      :hide_vote_counts
+      :hide_vote_counts,
+      :watch_on_reply,
+      :watch_on_upload,
+      :watch_on_new_topic,
+      :comments_always_jump_to_last,
+      :messages_newest_first,
+      :show_sidebar_and_watched_images
     ])
     |> TagList.propagate_tag_list(:watched_tag_list, :watched_tag_ids)
-    |> validate_inclusion(:theme, ~W(default dark light fuchsia green orange))
-    |> validate_inclusion(:images_per_page, 15..50)
-    |> validate_inclusion(:comments_per_page, 15..100)
+    |> validate_inclusion(:theme, ~W(default dark red))
+    |> validate_inclusion(:images_per_page, 1..50)
+    |> validate_inclusion(:comments_per_page, 1..100)
     |> Search.validate_search(:watched_images_query_str, user, true)
     |> Search.validate_search(:watched_images_exclude_str, user, true)
   end
@@ -350,7 +365,7 @@ defmodule Philomena.Users.User do
   end
 
   def name_changeset(user, attrs) do
-    now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
 
     user
     |> cast(attrs, [:name])
@@ -389,12 +404,12 @@ defmodule Philomena.Users.User do
     validate_change(changeset, field, fn (current_field, value) ->
       if 1 > value or value > 307_200 do
         [{current_field, "must be less than or equal to 300kb"}]
-      else 
+      else
         []
       end
     end)
   end
-  
+
   def validate_avatar_dimension(changeset, field) when is_atom(field) do
     validate_change(changeset, field, fn (current_field, value) ->
       if 1 > value or value > 1_000 do
@@ -420,7 +435,7 @@ defmodule Philomena.Users.User do
   end
 
   def deactivate_changeset(user, moderator) do
-    now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
 
     change(user, deleted_at: now, deleted_by_user_id: moderator.id)
   end
@@ -526,6 +541,13 @@ defmodule Philomena.Users.User do
       user.encrypted_otp_secret_iv,
       user.encrypted_otp_secret_salt
     )
+  end
+
+  def clear_recent_filters_changeset(user) do
+    user
+    |> change(%{
+      recent_filter_ids: [user.current_filter_id]
+    })
   end
 
   defp enable_totp_changeset(user, backup_codes) do

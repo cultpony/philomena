@@ -29,7 +29,6 @@ defmodule Philomena.Application do
 
       # Start the endpoint when the application starts
       PhilomenaWeb.AdvertUpdater,
-      PhilomenaWeb.StatsUpdater,
       PhilomenaWeb.UserFingerprintUpdater,
       PhilomenaWeb.UserIpUpdater,
       PhilomenaWeb.Endpoint,
@@ -187,4 +186,10 @@ defmodule Philomena.Application do
     Application.put_env(:philomena, :mailer_address, config.mailer_address)
 
   end
+  # Redis adapter really really wants you to have a unique node name,
+  # so just fake one if iex is being started
+  defp valid_node_name(node) when node in [nil, :nonode@nohost],
+    do: Base.encode16(:crypto.strong_rand_bytes(6))
+
+  defp valid_node_name(node), do: node
 end

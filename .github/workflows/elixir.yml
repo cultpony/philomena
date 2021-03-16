@@ -1,10 +1,6 @@
 name: Philomena Build
 
-on:
-    push:
-        branches: [master]
-    pull_request:
-        branches: [master]
+on: [push, pull_request]
 
 jobs:
   build:
@@ -44,7 +40,7 @@ jobs:
         mix local.hex --force
         mix deps.get
     - name: Run Tests
-      env: 
+      env:
         MIX_ENV: 'test'
         PGUSER: 'postgres'
         PGPASSWORD: 'postgres'

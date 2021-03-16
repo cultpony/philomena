@@ -23,12 +23,12 @@ defmodule PhilomenaWeb.ImageController do
        [time: 10, error: "You may only upload images once every 10 seconds."]
        when action in [:create]
 
-
   plug :load_image when action in [:show]
 
   plug PhilomenaWeb.FilterBannedUsersPlug when action in [:new, :create]
   plug PhilomenaWeb.UserAttributionPlug when action in [:create]
-  plug PhilomenaWeb.CaptchaPlug when action in [:create]
+  plug PhilomenaWeb.CaptchaPlug when action in [:new, :show, :create]
+  plug PhilomenaWeb.CheckCaptchaPlug when action in [:create]
 
   plug PhilomenaWeb.ScraperPlug,
        [params_name: "image", params_key: "image"] when action in [:create]
@@ -39,6 +39,8 @@ defmodule PhilomenaWeb.ImageController do
     {:ok, {images, _tags}} = ImageLoader.search_string(conn, "created_at.lte:3 minutes ago, processed:true")
 
     images = Elasticsearch.search_records(images, preload(Image, :tags))
+
+    images = Elasticsearch.search_records(images, preload(Image, tags: :aliases))
 
     interactions = Interactions.user_interactions(images, conn.assigns.current_user)
 
@@ -58,6 +60,8 @@ defmodule PhilomenaWeb.ImageController do
 
     # Update the notification ticker in the header
     conn = NotificationCountPlug.call(conn)
+
+    conn = maybe_skip_to_last_comment_page(conn, image, user)
 
     comments = CommentLoader.load_comments(conn, image)
 
@@ -132,6 +136,18 @@ defmodule PhilomenaWeb.ImageController do
     end
   end
 
+  defp maybe_skip_to_last_comment_page(conn, image, %{
+         comments_newest_first: false,
+         comments_always_jump_to_last: true
+       }) do
+    page = CommentLoader.last_page(conn, image)
+
+    conn
+    |> assign(:comment_scrivener, Keyword.merge(conn.assigns.comment_scrivener, page: page))
+  end
+
+  defp maybe_skip_to_last_comment_page(conn, _image, _user), do: conn
+
   defp user_galleries(_image, nil), do: []
 
   defp user_galleries(image, user) do
@@ -167,7 +183,7 @@ defmodule PhilomenaWeb.ImageController do
         [i, _],
         _ in fragment("SELECT COUNT(*) FROM source_changes s WHERE s.image_id = ?", i.id)
       )
-      |> preload([:tags, :deleter, user: [awards: :badge]])
+      |> preload([:deleter, :locked_tags, user: [awards: :badge], tags: :aliases])
       |> select([i, t, s], {i, t.count, s.count})
       |> Repo.one()
       |> case do

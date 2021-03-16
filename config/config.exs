@@ -7,6 +7,12 @@
 # General application configuration
 import Config
 
+config :logger,
+  compile_time_purge_matching: [
+    [application: :remote_ip],
+    [application: :mint]
+  ]
+
 config :philomena,
   ecto_repos: [Philomena.Repo],
   elasticsearch_url: System.get_env("ELASTICSEARCH_HOST"),
@@ -33,7 +39,7 @@ config :philomena,
   #   proxy_host: nil,
 
 config :exq,
-  queues: [{"videos", 2}, {"images", 4}, {"indexing", 16}],
+  max_retries: 5,
   scheduler_enable: true,
   max_retries: 1,
   start_on_application: false,
@@ -61,7 +67,6 @@ config :canary,
 config :phoenix, :template_engines,
   slim: PhoenixSlime.Engine,
   slime: PhoenixSlime.Engine,
-  # If you want to use LiveView
   slimleex: PhoenixSlime.LiveViewEngine
 
 config :tesla, adapter: Tesla.Adapter.Mint

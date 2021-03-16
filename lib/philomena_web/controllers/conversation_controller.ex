@@ -14,6 +14,10 @@ defmodule PhilomenaWeb.ConversationController do
        [time: 60, error: "You may only create a conversation once every minute."]
        when action in [:create]
 
+  plug PhilomenaWeb.LimitPlug,
+       [time: 60, error: "You may only create a conversation once every minute."]
+       when action in [:create]
+
   plug :load_and_authorize_resource,
     model: Conversation,
     id_field: "slug",
@@ -62,11 +66,12 @@ defmodule PhilomenaWeb.ConversationController do
   def show(conn, _params) do
     conversation = conn.assigns.conversation
     user = conn.assigns.current_user
+    pref = load_direction(user)
 
     messages =
       Message
       |> where(conversation_id: ^conversation.id)
-      |> order_by(asc: :created_at)
+      |> order_by([{^pref, :created_at}])
       |> preload([:from])
       |> Repo.paginate(conn.assigns.scrivener)
 
@@ -117,10 +122,6 @@ defmodule PhilomenaWeb.ConversationController do
     end
   end
 
-  defp verify_authorized(conn, _opts) do
-    case Canada.Can.can?(conn.assigns.current_user, action_name(conn), Conversation) do
-      true -> conn
-      _false -> PhilomenaWeb.NotAuthorizedPlug.call(conn)
-    end
-  end
+  defp load_direction(%{messages_newest_first: false}), do: :asc
+  defp load_direction(_user), do: :desc
 end

@@ -1,6 +1,8 @@
 defmodule Camo.Image do
   def image_url(input) do
-    if camo_host() == nil or camo_host() == "" do
+    %{host: host} = URI.parse(input)
+
+    if !host or String.ends_with?(host, cdn_host()) or is_nil(camo_key()) do
       input
     else
       %{host: host} = URI.parse(input)

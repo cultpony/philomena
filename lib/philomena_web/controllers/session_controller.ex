@@ -28,7 +28,7 @@ defmodule PhilomenaWeb.SessionController do
 
       not is_nil(user) ->
         conn
-        |> put_flash(:info, "Mellow greetings, citizen!")
+        |> put_flash(:info, "Successfully logged in.")
         |> UserAuth.log_in_user(user, user_params)
 
       true ->

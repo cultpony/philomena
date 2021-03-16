@@ -2,11 +2,14 @@ defmodule PhilomenaWeb.TagView do
   use PhilomenaWeb, :view
 
   # this is bad practice, don't copy this.
-  alias Philomena.Servers.Config
+  alias Philomena.Config
   alias Philomena.Elasticsearch
   alias Philomena.Tags.Tag
   alias Philomena.Repo
+  alias PhilomenaWeb.ImageScope
   import Ecto.Query
+
+  def scope(conn), do: ImageScope.scope(conn)
 
   def tag_categories do
     [[key: "-", value: ""] | Tag.categories()]
@@ -115,14 +118,13 @@ defmodule PhilomenaWeb.TagView do
   end
 
   defp names_in_tab("season", data) do
-    data
-    |> Enum.flat_map(&Map.values/1)
+    Enum.map(data, fn [_number, name] -> name end)
   end
 
   defp names_in_tab("shorthand", data) do
     data
-    |> Map.values()
-    |> Enum.flat_map(&Map.values/1)
+    |> Enum.map(fn [_title, tags] -> tags end)
+    |> Enum.flat_map(&Enum.map(&1, fn [_shorthand, tag] -> tag end))
   end
 
   defp names_in_tab(_mode, _data), do: []
@@ -153,7 +155,7 @@ defmodule PhilomenaWeb.TagView do
   end
 
   defp manages_links?(conn),
-    do: can?(conn, :index, Philomena.UserLinks.UserLink)
+    do: can?(conn, :index, Philomena.ArtistLinks.ArtistLink)
 
   defp manages_dnp?(conn),
     do: can?(conn, :index, Philomena.DnpEntries.DnpEntry)

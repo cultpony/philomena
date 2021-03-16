@@ -29,7 +29,8 @@ defmodule PhilomenaWeb.ReportController do
   #
   # plug PhilomenaWeb.FilterBannedUsersPlug
   # plug PhilomenaWeb.UserAttributionPlug
-  # plug PhilomenaWeb.CaptchaPlug when action in [:create]
+  # plug PhilomenaWeb.CaptchaPlug
+  # plug PhilomenaWeb.CheckCaptchaPlug when action in [:create]
   # plug :load_and_authorize_resource, model: Image, id_name: "image_id", persisted: true
 
   def create(conn, action, reportable, reportable_type, %{"report" => report_params}) do
@@ -46,9 +47,7 @@ defmodule PhilomenaWeb.ReportController do
 
       _falsy ->
         case Reports.create_report(reportable.id, reportable_type, attribution, report_params) do
-          {:ok, report} ->
-            Reports.reindex_report(report)
-
+          {:ok, _report} ->
             conn
             |> put_flash(
               :info,
@@ -105,6 +104,6 @@ defmodule PhilomenaWeb.ReportController do
   defp redirect_path(conn, _user), do: Routes.report_path(conn, :index)
 
   defp max_reports do
-    5
+    3
   end
 end

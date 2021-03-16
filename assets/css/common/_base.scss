@@ -336,7 +336,7 @@ blockquote {
 }
 
 .page-current {
-  padding: $header_spacing;
+  padding: 0 $header_spacing;
 }
 
 i.favicon-home {
@@ -399,6 +399,7 @@ span.stat {
 @import "~views/polls";
 @import "~views/posts";
 @import "~views/profiles";
+@import "~views/pagination";
 @import "~views/search";
 @import "~views/stats";
 @import "~views/tags";

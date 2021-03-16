@@ -32,7 +32,7 @@ defmodule Philomena.Topics.Topic do
     field :anonymous, :boolean, default: false
     field :hidden_from_users, :boolean, default: false
 
-    timestamps(inserted_at: :created_at)
+    timestamps(inserted_at: :created_at, type: :utc_datetime)
   end
 
   @doc false
@@ -116,8 +116,6 @@ defmodule Philomena.Topics.Topic do
     |> cast(attrs, [:title])
     |> validate_required([:title])
     |> validate_length(:title, min: 4, max: 96, count: :bytes)
-    |> put_slug()
-    |> unique_constraint(:slug, name: :index_topics_on_forum_id_and_slug)
   end
 
   def put_slug(changeset) do

@@ -40,19 +40,6 @@
         button.button.button--separate-left#js-scraper-preview(type="button" title="Fetch the image at the specified URL" data-disable-with="Fetch" disabled)
           ' Fetch
 
-      .field-error-js.hidden.js-scraper
-
-    h4 About this image
-    .field
-      = label f, :source_url, "The page you found this image on"
-      = url_input f, :source_url, class: "input input--wide js-image-input", placeholder: "Source URL"
-    
-    .field
-      label for="image[tag_input]"
-        ' Describe with
-        strong> 3+
-        ' tags, including ratings and applicable artist tags
-
       = render PhilomenaWeb.TagView, "_tag_editor.html", f: f, name: :tag_input, type: :upload
       = error_tag f, :tag_input
 
@@ -81,10 +68,10 @@
         .block__tab.hidden data-tab="preview"
           | Loading preview...
 
-    = if @conn.assigns.current_user do
-      .field
-        = label f, :anonymous, "Post anonymously"
-        = checkbox f, :anonymous, class: "checkbox", value: anonymous_by_default?(@conn)
+      = label f, :anonymous, "Post anonymously"
+      = checkbox f, :anonymous, class: "checkbox", value: anonymous_by_default?(@conn)
 
-    .actions
-      = submit "Upload", class: "button", autocomplete: "off", data: [disable_with: "Please wait..."]
+  = render PhilomenaWeb.CaptchaView, "_captcha.html", name: "image", conn: @conn
+
+  .actions
+    = submit "Upload", class: "button", autocomplete: "off", data: [disable_with: "Please wait..."]

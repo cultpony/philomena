@@ -4,9 +4,8 @@ defmodule PhilomenaWeb.RegistrationController do
   alias Philomena.Users
   alias Philomena.Users.User
 
-  plug PhilomenaWeb.CaptchaPlug when action in [:create]
-  plug PhilomenaWeb.NameLengthLimiterPlug when action in [:create]
-  plug PhilomenaWeb.NotableNamePlug when action in [:create]
+  plug PhilomenaWeb.CaptchaPlug when action in [:new, :create]
+  plug PhilomenaWeb.CheckCaptchaPlug when action in [:create]
   plug PhilomenaWeb.CompromisedPasswordCheckPlug when action in [:create]
   plug :assign_email_and_password_changesets when action in [:edit]
 
@@ -37,7 +36,7 @@ defmodule PhilomenaWeb.RegistrationController do
   end
 
   def edit(conn, _params) do
-    render(conn, "edit.html")
+    render(conn, "edit.html", title: "Account Settings")
   end
 
   defp assign_email_and_password_changesets(conn, _opts) do

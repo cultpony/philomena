@@ -5,7 +5,7 @@ defmodule Philomena.Tags.Tag do
 
   alias Philomena.Channels.Channel
   alias Philomena.DnpEntries.DnpEntry
-  alias Philomena.UserLinks.UserLink
+  alias Philomena.ArtistLinks.ArtistLink
   alias Philomena.Tags.Tag
   alias Philomena.Slug
   alias Philomena.Repo
@@ -68,8 +68,8 @@ defmodule Philomena.Tags.Tag do
       join_through: "tags_implied_tags",
       join_keys: [implied_tag_id: :id, tag_id: :id]
 
-    has_many :public_links, UserLink, where: [public: true, aasm_state: "verified"]
-    has_many :hidden_links, UserLink, where: [public: false, aasm_state: "verified"]
+    has_many :public_links, ArtistLink, where: [public: true, aasm_state: "verified"]
+    has_many :hidden_links, ArtistLink, where: [public: false, aasm_state: "verified"]
     has_many :dnp_entries, DnpEntry, where: [aasm_state: "listed"]
 
     field :slug, :string
@@ -90,7 +90,7 @@ defmodule Philomena.Tags.Tag do
 
     field :implied_tag_list, :string, virtual: true
 
-    timestamps(inserted_at: :created_at)
+    timestamps(inserted_at: :created_at, type: :utc_datetime)
   end
 
   @doc false
@@ -163,6 +163,7 @@ defmodule Philomena.Tags.Tag do
         &1.category != "character",
         &1.category != "oc",
         &1.category != "species",
+        &1.category != "body-type",
         &1.category != "content-fanmade",
         &1.category != "content-official",
         &1.category != "spoiler",
@@ -179,6 +180,7 @@ defmodule Philomena.Tags.Tag do
       "character",
       "oc",
       "species",
+      "body-type",
       "content-fanmade",
       "content-official",
       "spoiler"

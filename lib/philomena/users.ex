@@ -17,6 +17,8 @@ defmodule Philomena.Users do
   alias Philomena.Posts
   alias Philomena.Galleries
   alias Philomena.Reports
+  alias Philomena.Filters
+  alias Philomena.UserRenameWorker
 
   ## Database getters
 
@@ -234,7 +236,7 @@ defmodule Philomena.Users do
   If the token matches, the user is marked as unlocked
   and the token is deleted.
   """
-  def unlock_user(token) do
+  def unlock_user_by_token(token) do
     with {:ok, query} <- UserToken.verify_email_token_query(token, "unlock"),
          %User{} = user <- Repo.one(query),
          {:ok, %{user: user}} <- Repo.transaction(unlock_user_multi(user)) do
@@ -250,6 +252,15 @@ defmodule Philomena.Users do
     Ecto.Multi.new()
     |> Ecto.Multi.update(:user, changeset)
     |> Ecto.Multi.delete_all(:tokens, UserToken.user_and_contexts_query(user, ["unlock"]))
+  end
+
+  @doc """
+  Unconditionally unlocks the given user.
+  """
+  def unlock_user(user) do
+    user
+    |> User.unlock_changeset()
+    |> Repo.update()
   end
 
   @doc """
@@ -594,20 +605,23 @@ defmodule Philomena.Users do
     |> Multi.update(:account, account)
     |> Repo.transaction()
     |> case do
-      {:ok, %{account: %{name: new_name}}} = result ->
-        spawn(fn ->
-          Images.user_name_reindex(old_name, new_name)
-          Comments.user_name_reindex(old_name, new_name)
-          Posts.user_name_reindex(old_name, new_name)
-          Galleries.user_name_reindex(old_name, new_name)
-          Reports.user_name_reindex(old_name, new_name)
-        end)
+      {:ok, %{account: %{name: new_name} = account}} ->
+        Exq.enqueue(Exq, "indexing", UserRenameWorker, [old_name, new_name])
 
-        result
+        {:ok, account}
 
-      result ->
-        result
+      {:error, :account, changeset, _changes} ->
+        {:error, changeset}
     end
+  end
+
+  def perform_rename(old_name, new_name) do
+    Images.user_name_reindex(old_name, new_name)
+    Comments.user_name_reindex(old_name, new_name)
+    Posts.user_name_reindex(old_name, new_name)
+    Galleries.user_name_reindex(old_name, new_name)
+    Reports.user_name_reindex(old_name, new_name)
+    Filters.user_name_reindex(old_name, new_name)
   end
 
   def reactivate_user(%User{} = user) do
@@ -637,6 +651,12 @@ defmodule Philomena.Users do
   def unforce_filter(%User{} = user) do
     user
     |> User.unforce_filter_changeset()
+    |> Repo.update()
+  end
+
+  def clear_recent_filters(%User{} = user) do
+    user
+    |> User.clear_recent_filters_changeset()
     |> Repo.update()
   end
 

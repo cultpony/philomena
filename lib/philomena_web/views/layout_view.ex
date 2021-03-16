@@ -2,20 +2,24 @@ defmodule PhilomenaWeb.LayoutView do
   use PhilomenaWeb, :view
 
   alias PhilomenaWeb.ImageView
-  alias Philomena.Servers.Config
+  alias Philomena.Config
   alias Plug.Conn
 
   def layout_class(conn) do
     conn.assigns[:layout_class] || "layout--narrow"
   end
 
-  def container_class(%{use_centered_layout: true}), do: "layout--center-aligned"
-  def container_class(_user), do: nil
+  def container_class(%{use_centered_layout: false}), do: nil
+  def container_class(_user), do: "layout--center-aligned"
 
   def render_time(conn) do
     (Time.diff(Time.utc_now(), conn.assigns[:start_time], :microsecond) / 1000.0)
     |> Float.round(3)
     |> Float.to_string()
+  end
+
+  def cdn_host do
+    Application.get_env(:philomena, :cdn_host)
   end
 
   defp ignored_tag_list(nil), do: []
@@ -77,6 +81,9 @@ defmodule PhilomenaWeb.LayoutView do
 
   def stylesheet_path(conn, _user),
     do: Routes.static_path(conn, "/css/default.css")
+
+  def dark_stylesheet_path(conn),
+    do: Routes.static_path(conn, "/css/dark.css")
 
   def theme_name(%{theme: theme}), do: theme
   def theme_name(_user), do: "default"

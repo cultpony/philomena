@@ -17,8 +17,8 @@ defmodule PhilomenaWeb.ContentSecurityPolicyPlug do
 
     register_before_send(conn, fn conn ->
       config = get_config(conn)
-      script_src = Keyword.get(config, :script_src, [])
 
+      script_src = Keyword.get(config, :script_src, [])
       style_src = Keyword.get(config, :style_src, [])
       frame_src = Keyword.get(config, :frame_src, nil)
 
@@ -47,7 +47,7 @@ defmodule PhilomenaWeb.ContentSecurityPolicyPlug do
   def permit_source(conn, key, value) when key in @allowed_sources do
     conn
     |> get_config()
-    |> Keyword.update(key, [], &[value | &1])
+    |> Keyword.update(key, value, &(value ++ &1))
     |> set_config(conn)
   end
 

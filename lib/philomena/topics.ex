@@ -9,7 +9,10 @@ defmodule Philomena.Topics do
 
   alias Philomena.Topics.Topic
   alias Philomena.Forums.Forum
+  alias Philomena.Posts
   alias Philomena.Notifications
+  alias Philomena.NotificationWorker
+  alias Philomena.Users.User
 
   @doc """
   Gets a single topic.
@@ -67,38 +70,60 @@ defmodule Philomena.Topics do
 
       {:ok, count}
     end)
+    |> maybe_create_subscription_on_new_topic(attribution[:user])
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{topic: topic}} = result ->
+        Posts.reindex_post(hd(topic.posts))
+
+        result
+
+      error ->
+        error
+    end
+  end
+
+  defp maybe_create_subscription_on_new_topic(multi, %User{watch_on_new_topic: true} = user) do
+    multi
     |> Multi.run(:subscribe, fn _repo, %{topic: topic} ->
-      create_subscription(topic, attribution[:user])
+      create_subscription(topic, user)
     end)
     |> Repo.transaction()
   end
 
-  def notify_topic(topic) do
-    spawn(fn ->
-      forum =
-        topic
-        |> Repo.preload(:forum)
-        |> Map.fetch!(:forum)
+  defp maybe_create_subscription_on_new_topic(multi, _user) do
+    multi
+  end
 
-      subscriptions =
-        forum
-        |> Repo.preload(:subscriptions)
-        |> Map.fetch!(:subscriptions)
+  def notify_topic(topic, post) do
+    Exq.enqueue(Exq, "notifications", NotificationWorker, ["Topics", [topic.id, post.id]])
+  end
 
-      Notifications.notify(
-        topic,
-        subscriptions,
-        %{
-          actor_id: forum.id,
-          actor_type: "Forum",
-          actor_child_id: topic.id,
-          actor_child_type: "Topic",
-          action: "posted a new topic"
-        }
-      )
-    end)
+  def perform_notify([topic_id, post_id]) do
+    topic = get_topic!(topic_id)
+    post = Posts.get_post!(post_id)
 
-    topic
+    forum =
+      topic
+      |> Repo.preload(:forum)
+      |> Map.fetch!(:forum)
+
+    subscriptions =
+      forum
+      |> Repo.preload(:subscriptions)
+      |> Map.fetch!(:subscriptions)
+
+    Notifications.notify(
+      post,
+      subscriptions,
+      %{
+        actor_id: topic.id,
+        actor_type: "Topic",
+        actor_child_id: post.id,
+        actor_child_type: "Post",
+        action: "posted a new topic in #{forum.name}"
+      }
+    )
   end
 
   @doc """

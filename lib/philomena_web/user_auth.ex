@@ -53,6 +53,7 @@ defmodule PhilomenaWeb.UserAuth do
   """
   def totp_auth_user(conn, user, params \\ %{}) do
     token = Users.generate_user_totp_token(user)
+    user_return_to = get_session(conn, :user_return_to)
 
     conn
     |> put_session(:totp_token, token)
@@ -132,7 +133,16 @@ defmodule PhilomenaWeb.UserAuth do
     user = user_token && Users.get_user_by_session_token(user_token)
     totp = totp_token && Users.user_totp_token_valid?(user, totp_token)
 
-    if user, do: update_usages(conn, user)
+    cond do
+      user && user.otp_required_for_login && totp ->
+        update_usages(conn, user)
+
+      user && !user.otp_required_for_login ->
+        update_usages(conn, user)
+
+      true ->
+        nil
+    end
 
     conn
     |> assign(:current_user, user)
@@ -205,9 +215,9 @@ defmodule PhilomenaWeb.UserAuth do
   defp maybe_store_return_to(conn), do: conn
 
   defp signed_in_path(_conn), do: "/"
-  
+
   defp update_usages(conn, user) do
-    now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
     conn = fetch_cookies(conn)
 
     UserIpUpdater.cast(user.id, conn.remote_ip, now)

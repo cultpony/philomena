@@ -38,6 +38,7 @@ defmodule Philomena.Images.Image do
     has_many :favers, through: [:faves, :user]
     has_many :hiders, through: [:hides, :user]
     many_to_many :tags, Tag, join_through: "image_taggings", on_replace: :delete
+    many_to_many :locked_tags, Tag, join_through: "image_tag_locks", on_replace: :delete
     has_one :intensity, ImageIntensity
     has_many :galleries, through: [:gallery_interactions, :image]
 
@@ -75,7 +76,7 @@ defmodule Philomena.Images.Image do
     field :tag_editing_allowed, :boolean, default: true
     field :description_editing_allowed, :boolean, default: true
     field :commenting_allowed, :boolean, default: true
-    field :first_seen_at, :naive_datetime
+    field :first_seen_at, :utc_datetime
     field :destroyed_content, :boolean
     field :hidden_image_key, :string
     field :scratchpad, :string
@@ -92,7 +93,7 @@ defmodule Philomena.Images.Image do
     field :uploaded_image, :string, virtual: true
     field :removed_image, :string, virtual: true
 
-    timestamps(inserted_at: :created_at)
+    timestamps(inserted_at: :created_at, type: :utc_datetime)
   end
 
   def interaction_data(image) do
@@ -112,7 +113,7 @@ defmodule Philomena.Images.Image do
   end
 
   def creation_changeset(image, attrs, attribution) do
-    now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
 
     image
     |> cast(attrs, [:anonymous, :source_url, :description])
@@ -162,7 +163,7 @@ defmodule Philomena.Images.Image do
       :uploaded_image,
       :image_is_animated
     ])
-    |> validate_number(:image_size, greater_than: 0, less_than_or_equal_to: 100_000_000)
+    |> validate_number(:image_size, greater_than: 0, less_than_or_equal_to: 125_000_000)
     |> validate_number(:image_width, greater_than: 0, less_than_or_equal_to: 32767)
     |> validate_number(:image_height, greater_than: 0, less_than_or_equal_to: 32767)
     |> validate_length(:image_name, max: 255, count: :bytes)
@@ -187,12 +188,18 @@ defmodule Philomena.Images.Image do
     |> validate_format(:source_url, ~r/\Ahttps?:\/\//)
   end
 
-  def tag_changeset(image, attrs, old_tags, new_tags) do
+  def tag_changeset(image, attrs, old_tags, new_tags, excluded_tags \\ []) do
     image
     |> cast(attrs, [])
-    |> TagDiffer.diff_input(old_tags, new_tags)
+    |> TagDiffer.diff_input(old_tags, new_tags, excluded_tags)
     |> TagValidator.validate_tags()
     |> cache_changeset()
+  end
+
+  def locked_tags_changeset(image, attrs, locked_tags) do
+    image
+    |> cast(attrs, [])
+    |> put_assoc(:locked_tags, locked_tags)
   end
 
   def dnp_changeset(image, user) do
@@ -334,8 +341,9 @@ defmodule Philomena.Images.Image do
     file_name_slug_fragment =
       tags
       |> Enum.map_join("_", & &1.slug)
-      |> String.replace("%", "")
-      |> String.replace("/", "")
+      |> String.to_charlist()
+      |> Enum.filter(&(&1 in ?a..?z or &1 in '0123456789_-'))
+      |> List.to_string()
       |> String.slice(0..150)
 
     file_name_cache = "#{image_id}__#{file_name_slug_fragment}"

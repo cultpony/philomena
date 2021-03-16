@@ -7,8 +7,12 @@ defmodule Philomena.Http do
     Tesla.head(client(headers), url, opts: [adapter: adapter_opts(options)])
   end
 
+  def post(url, body, headers \\ [], options \\ []) do
+    Tesla.post(client(headers), url, body, opts: [adapter: adapter_opts(options)])
+  end
+
   defp adapter_opts(opts) do
-    opts = Keyword.merge(opts, max_body: 100_000_000)
+    opts = Keyword.merge(opts, max_body: 125_000_000)
 
     case Application.get_env(:philomena, :proxy_host) do
       nil ->
@@ -28,10 +32,11 @@ defmodule Philomena.Http do
   defp client(headers) do
     Tesla.client(
       [
+        {Tesla.Middleware.FollowRedirects, max_redirects: 1},
         {Tesla.Middleware.Headers,
          [
            {"User-Agent",
-            "Mozilla/5.0 (X11; Philomena; Linux x86_64; rv:70.0) Gecko/20100101 Firefox/76.0"}
+            "Mozilla/5.0 (X11; Philomena; Linux x86_64; rv:86.0) Gecko/20100101 Firefox/86.0"}
            | headers
          ]}
       ],

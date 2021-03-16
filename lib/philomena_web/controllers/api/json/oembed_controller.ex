@@ -27,7 +27,8 @@ defmodule PhilomenaWeb.Api.Json.OembedController do
         true -> nil
       end
 
-    load_image(image_id)
+    image_id
+    |> load_image()
     |> oembed_image(conn)
   end
 
@@ -36,12 +37,12 @@ defmodule PhilomenaWeb.Api.Json.OembedController do
   defp load_image(id) do
     Image
     |> where(id: ^id, hidden_from_users: false)
-    |> preload([:tags, :user])
+    |> preload([:user, tags: :aliases])
     |> Repo.one()
   end
 
   defp oembed_image(nil, conn), do: oembed_error(conn)
-  defp oembed_image(image, conn), do: json(conn, oembed_json(image))
+  defp oembed_image(image, conn), do: render(conn, "show.json", image: image)
 
   defp oembed_error(conn) do
     conn

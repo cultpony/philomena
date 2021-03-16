@@ -3,7 +3,8 @@ defmodule PhilomenaWeb.UnlockController do
 
   alias Philomena.Users
 
-  plug PhilomenaWeb.CaptchaPlug when action in [:create]
+  plug PhilomenaWeb.CaptchaPlug
+  plug PhilomenaWeb.CheckCaptchaPlug when action in [:create]
 
   def new(conn, _params) do
     render(conn, "new.html")
@@ -30,7 +31,7 @@ defmodule PhilomenaWeb.UnlockController do
   # Do not log in the user after unlocking to avoid a
   # leaked token giving the user access to the account.
   def show(conn, %{"id" => token}) do
-    case Users.unlock_user(token) do
+    case Users.unlock_user_by_token(token) do
       {:ok, _} ->
         conn
         |> put_flash(:info, "Account unlocked successfully. You may now log in.")

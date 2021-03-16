@@ -5,6 +5,7 @@ config :bcrypt_elixir, :log_rounds, 1
 
 # Configure your database
 config :philomena, Philomena.Repo,
+  hostname: "postgres",
   username: "postgres",
   password: "postgres",
   database: "philomena_db",

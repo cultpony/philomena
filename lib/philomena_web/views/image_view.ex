@@ -108,7 +108,7 @@ defmodule PhilomenaWeb.ImageView do
     root = image_url_root()
 
     view = if download, do: "download", else: "view"
-    filename = if short, do: image.id, else: image.file_name_cache
+    filename = if short, do: image.id, else: verbose_file_name(image)
 
     format =
       image.image_format
@@ -119,6 +119,21 @@ defmodule PhilomenaWeb.ImageView do
     "#{root}/#{view}/#{year}/#{month}/#{day}/#{filename}.#{format}"
   end
 
+  defp verbose_file_name(image) do
+    # Truncate filename to 150 characters, making room for the path + filename on Windows
+    # https://stackoverflow.com/questions/265769/maximum-filename-length-in-ntfs-windows-xp-and-windows-vista
+    file_name_slug_fragment =
+      image.tags
+      |> display_order()
+      |> Enum.map_join("_", & &1.slug)
+      |> String.to_charlist()
+      |> Enum.filter(&(&1 in ?a..?z or &1 in '0123456789_-+'))
+      |> List.to_string()
+      |> String.slice(0..150)
+
+    "#{image.id}__#{file_name_slug_fragment}"
+  end
+
   def image_url_root do
     Application.get_env(:philomena, :image_url_root)
   end
@@ -127,13 +142,15 @@ defmodule PhilomenaWeb.ImageView do
     [
       image_id: image.id,
       image_tags: Jason.encode!(Enum.map(image.tags, & &1.id)),
-      image_tag_aliases: image.tag_list_plus_alias_cache,
+      image_tag_aliases:
+        image.tags |> Enum.flat_map(&([&1] ++ &1.aliases)) |> Enum.map_join(", ", & &1.name),
+      tag_count: length(image.tags),
       score: image.score,
       faves: image.faves_count,
       upvotes: image.upvotes_count,
       downvotes: image.downvotes_count,
       comment_count: image.comments_count,
-      created_at: NaiveDateTime.to_iso8601(image.created_at),
+      created_at: DateTime.to_iso8601(image.created_at),
       source_url: image.source_url,
       uris: Jason.encode!(thumb_urls(image, can?(conn, :show, image))),
       width: image.image_width,
@@ -219,7 +236,9 @@ defmodule PhilomenaWeb.ImageView do
   def image_filter_data(image) do
     %{
       id: image.id,
-      "namespaced_tags.name": String.split(image.tag_list_plus_alias_cache || "", ", "),
+      "namespaced_tags.name":
+        image.tags |> Enum.flat_map(&([&1] ++ &1.aliases)) |> Enum.map_join(", ", & &1.name),
+      tag_count: length(image.tags),
       score: image.score,
       faves: image.faves_count,
       upvotes: image.upvotes_count,

@@ -42,7 +42,7 @@ If you run into an Elasticsearch bootstrap error, you may need to increase your 
 sudo sysctl -w vm.max_map_count=262144
 ```
 
-If you have SELinux enforcing, you should run the following in the application directory on the host before proceeding:
+If you have SELinux enforcing (Fedora, Arch, others; manifests as a `Could not find a Mix.Project` error), you should run the following in the application directory on the host before proceeding:
 ```
 chcon -Rt svirt_sandbox_file_t .
 ```
@@ -55,6 +55,16 @@ docker container rm philomena_postgres_1
 docker volume ls
 docker volume rm philomena_postgres_data
 ```
+If you are using a platform which uses cgroups v2 by default (Fedora 31+), use `podman` and `podman-compose`.
+
+## Deployment
+You need a key installed on the server you target, and the git remote installed in your ssh configuration.
+
+    git remote add production philomena@<serverip>:philomena/
+
+The general syntax is:
+
+    git push production master
 
 To manually start the app container and run commands from `docker/app/run-development` or `docker/app/run-prod`, uncomment the entrypoint line in `docker-compose.yml`, then run `docker-compose up`. In another shell, run `docker-compose exec app bash` and you should be good to go. As next steps, you'll usually want to manually execute the commands from the above mentioned run scripts and look at the console output to see what the problem is. From this container, you can also connect to the postgresql database using `psql -h postgres -U postgres`.
 

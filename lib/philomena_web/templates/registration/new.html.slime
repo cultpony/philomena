@@ -9,7 +9,7 @@ h1 Register
     ' Non-anonymous posts permanently show your username as of posting time,
     ' and may appear on search engines; choose wisely.
     ' If you have any issues registering your account (esp. "name reserved"),
-    ' please check 
+    ' please check
     a<> href="/forums/meta/topics/name-verification" this forum post.
   .field
     = text_input f, :name, class: "input", placeholder: "Username", required: true, minlength: 2, maxlength: 80
@@ -19,21 +19,19 @@ h1 Register
     ' You'll use your email address to log in, and we'll use this to get in
     ' touch if we need to. Don't worry, we won't share this or spam you.
   .field
-    = email_input f, :email, class: "input", placeholder: "Email", required: true, pattern: ".*@.*"
+    = email_input f, :email, class: "input", placeholder: "Email", required: true, pattern: ~S/[^\s]+@[^\s]+\.[^\s]+/
     = error_tag f, :email
 
   .fieldlabel
     ' Pick a good strong password - longer is better! Minimum of 12 characters.
   .field
-    = password_input f, :password, class: "input", placeholder: "Password", required: true
+    = password_input f, :password, class: "input", placeholder: "Password", required: true, minlength: 12
     = error_tag f, :password
   .field
-    = password_input f, :password_confirmation, class: "input", placeholder: "Confirm password", required: true
+    = password_input f, :password_confirmation, class: "input", placeholder: "Confirm password", required: true, minlength: 12
     = error_tag f, :password_confirmation
 
-  .field
-    = checkbox f, :captcha, class: "js-captcha", value: 0
-    = label f, :captcha, "I am not a robot! I also agree to the Site Rules and Privacy Policy."
+  = render PhilomenaWeb.CaptchaView, "_captcha.html", name: "registration", conn: @conn
 
   br
 

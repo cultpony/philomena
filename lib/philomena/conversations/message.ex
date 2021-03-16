@@ -11,7 +11,7 @@ defmodule Philomena.Conversations.Message do
 
     field :body, :string
 
-    timestamps(inserted_at: :created_at)
+    timestamps(inserted_at: :created_at, type: :utc_datetime)
   end
 
   @doc false
@@ -27,6 +27,6 @@ defmodule Philomena.Conversations.Message do
     |> cast(attrs, [:body])
     |> validate_required([:body])
     |> put_assoc(:from, user)
-    |> validate_length(:body, max: 300_000, count: :bytes)
+    |> validate_length(:body, max: 20_000, count: :bytes)
   end
 end

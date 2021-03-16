@@ -3,7 +3,8 @@ defmodule PhilomenaWeb.ConfirmationController do
 
   alias Philomena.Users
 
-  plug PhilomenaWeb.CaptchaPlug when action in [:create]
+  plug PhilomenaWeb.CaptchaPlug
+  plug PhilomenaWeb.CheckCaptchaPlug when action in [:create]
 
   def new(conn, _params) do
     render(conn, "new.html")
@@ -29,15 +30,12 @@ defmodule PhilomenaWeb.ConfirmationController do
 
   # Do not log in the user after confirmation to avoid a
   # leaked token giving the user access to the account.
-  #
-  # If confirmation was successful redirect the user to the
-  # login page.
   def show(conn, %{"id" => token}) do
     case Users.confirm_user(token) do
       {:ok, _} ->
         conn
         |> put_flash(:info, "Account confirmed successfully.")
-        |> redirect(to: "/sessions/new")
+        |> redirect(to: "/")
 
       :error ->
         conn

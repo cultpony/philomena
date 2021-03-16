@@ -7,6 +7,9 @@ defmodule Philomena.Filters do
   alias Philomena.Repo
 
   alias Philomena.Filters.Filter
+  alias Philomena.Elasticsearch
+  alias Philomena.Filters.ElasticsearchIndex, as: FilterIndex
+  alias Philomena.IndexWorker
 
   @doc """
   Returns the list of filters.
@@ -68,6 +71,7 @@ defmodule Philomena.Filters do
     %Filter{user_id: user.id}
     |> Filter.creation_changeset(attrs)
     |> Repo.insert()
+    |> reindex_after_update()
   end
 
   @doc """
@@ -86,12 +90,14 @@ defmodule Philomena.Filters do
     filter
     |> Filter.update_changeset(attrs)
     |> Repo.update()
+    |> reindex_after_update()
   end
 
   def make_filter_public(%Filter{} = filter) do
     filter
     |> Filter.public_changeset()
     |> Repo.update()
+    |> reindex_after_update()
   end
 
   @doc """
@@ -110,6 +116,15 @@ defmodule Philomena.Filters do
     filter
     |> Filter.deletion_changeset()
     |> Repo.delete()
+    |> case do
+      {:ok, filter} ->
+        unindex_filter(filter)
+
+        {:ok, filter}
+
+      error ->
+        error
+    end
   end
 
   @doc """
@@ -126,6 +141,10 @@ defmodule Philomena.Filters do
   end
 
   def recent_and_user_filters(user) do
+    recent_filter_ids =
+      [user.current_filter_id | user.recent_filter_ids]
+      |> Enum.take(10)
+
     user_filters =
       Filter
       |> select([f], %{id: f.id, name: f.name, recent: ^"f"})
@@ -135,10 +154,9 @@ defmodule Philomena.Filters do
     recent_filters =
       Filter
       |> select([f], %{id: f.id, name: f.name, recent: ^"t"})
-      |> where([f], f.id in ^user.recent_filter_ids)
-      |> limit(10)
+      |> where([f], f.id in ^recent_filter_ids)
 
-    union(recent_filters, ^user_filters)
+    union_all(recent_filters, ^user_filters)
     |> Repo.all()
     |> Enum.sort_by(fn f ->
       Enum.find_index(user.recent_filter_ids, fn id -> f.id == id end)
@@ -162,6 +180,7 @@ defmodule Philomena.Filters do
     filter
     |> Filter.hidden_tags_changeset(hidden_tag_ids)
     |> Repo.update()
+    |> reindex_after_update()
   end
 
   def unhide_tag(filter, tag) do
@@ -170,6 +189,7 @@ defmodule Philomena.Filters do
     filter
     |> Filter.hidden_tags_changeset(hidden_tag_ids)
     |> Repo.update()
+    |> reindex_after_update()
   end
 
   def spoiler_tag(filter, tag) do
@@ -178,6 +198,7 @@ defmodule Philomena.Filters do
     filter
     |> Filter.spoilered_tags_changeset(spoilered_tag_ids)
     |> Repo.update()
+    |> reindex_after_update()
   end
 
   def unspoiler_tag(filter, tag) do
@@ -186,5 +207,45 @@ defmodule Philomena.Filters do
     filter
     |> Filter.spoilered_tags_changeset(spoilered_tag_ids)
     |> Repo.update()
+    |> reindex_after_update()
+  end
+
+  defp reindex_after_update({:ok, filter}) do
+    reindex_filter(filter)
+
+    {:ok, filter}
+  end
+
+  defp reindex_after_update(error) do
+    error
+  end
+
+  def user_name_reindex(old_name, new_name) do
+    data = FilterIndex.user_name_update_by_query(old_name, new_name)
+
+    Elasticsearch.update_by_query(Filter, data.query, data.set_replacements, data.replacements)
+  end
+
+  def reindex_filter(%Filter{} = filter) do
+    Exq.enqueue(Exq, "indexing", IndexWorker, ["Filters", "id", [filter.id]])
+
+    filter
+  end
+
+  def unindex_filter(%Filter{} = filter) do
+    Elasticsearch.delete_document(filter.id, Filter)
+
+    filter
+  end
+
+  def indexing_preloads do
+    [:user]
+  end
+
+  def perform_reindex(column, condition) do
+    Filter
+    |> preload(^indexing_preloads())
+    |> where([f], field(f, ^column) in ^condition)
+    |> Elasticsearch.reindex(Filter)
   end
 end

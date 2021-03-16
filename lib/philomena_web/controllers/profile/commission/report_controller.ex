@@ -10,7 +10,8 @@ defmodule PhilomenaWeb.Profile.Commission.ReportController do
   plug PhilomenaWeb.FilterBannedUsersPlug
   plug PhilomenaWeb.AuthorizedReporterPlug when action in [:new, :create]
   plug PhilomenaWeb.UserAttributionPlug
-  plug PhilomenaWeb.CaptchaPlug when action in [:create]
+  plug PhilomenaWeb.CaptchaPlug
+  plug PhilomenaWeb.CheckCaptchaPlug when action in [:create]
   plug PhilomenaWeb.CanaryMapPlug, new: :show, create: :show
 
   plug :load_resource,
@@ -19,7 +20,11 @@ defmodule PhilomenaWeb.Profile.Commission.ReportController do
     id_field: "slug",
     preload: [
       :verified_links,
-      commission: [sheet_image: :tags, user: [awards: :badge], items: [example_image: :tags]]
+      commission: [
+        sheet_image: [tags: :aliases],
+        user: [awards: :badge],
+        items: [example_image: [tags: :aliases]]
+      ]
     ],
     persisted: true
 

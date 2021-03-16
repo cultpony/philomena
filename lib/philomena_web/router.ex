@@ -132,6 +132,7 @@ defmodule PhilomenaWeb.Router do
       resources "/posts", PostController, only: [:index]
       resources "/comments", CommentController, only: [:index]
       resources "/galleries", GalleryController, only: [:index]
+      resources "/filters", FilterController, only: [:index]
     end
 
     # Convenience alias
@@ -221,7 +222,9 @@ defmodule PhilomenaWeb.Router do
         only: [:create, :delete],
         singleton: true
 
-      resources "/tag_lock", Image.TagLockController, only: [:create, :delete], singleton: true
+      resources "/tag_lock", Image.TagLockController,
+        only: [:show, :update, :create, :delete],
+        singleton: true
     end
 
     resources "/forums", ForumController, only: [] do
@@ -271,7 +274,7 @@ defmodule PhilomenaWeb.Router do
         only: [:edit, :update],
         singleton: true
 
-      resources "/user_links", Profile.UserLinkController
+      resources "/artist_links", Profile.ArtistLinkController
       resources "/awards", Profile.AwardController, except: [:index, :show]
 
       resources "/details", Profile.DetailController, only: [:index]
@@ -331,13 +334,13 @@ defmodule PhilomenaWeb.Router do
         resources "/close", Report.CloseController, only: [:create], singleton: true
       end
 
-      resources "/user_links", UserLinkController, only: [:index] do
-        resources "/verification", UserLink.VerificationController,
+      resources "/artist_links", ArtistLinkController, only: [:index] do
+        resources "/verification", ArtistLink.VerificationController,
           only: [:create],
           singleton: true
 
-        resources "/contact", UserLink.ContactController, only: [:create], singleton: true
-        resources "/reject", UserLink.RejectController, only: [:create], singleton: true
+        resources "/contact", ArtistLink.ContactController, only: [:create], singleton: true
+        resources "/reject", ArtistLink.RejectController, only: [:create], singleton: true
       end
 
       resources "/dnp_entries", DnpEntryController, only: [:index] do
@@ -375,6 +378,7 @@ defmodule PhilomenaWeb.Router do
           only: [:create, :delete],
           singleton: true
 
+        resources "/unlock", User.UnlockController, only: [:create], singleton: true
         resources "/api_key", User.ApiKeyController, only: [:delete], singleton: true
         resources "/downvotes", User.DownvoteController, only: [:delete], singleton: true
         resources "/votes", User.VoteController, only: [:delete], singleton: true
@@ -454,9 +458,12 @@ defmodule PhilomenaWeb.Router do
       resources "/favorites", Image.FavoriteController, only: [:index]
     end
 
-    scope "/tags", Tag, as: :tag do
-      resources "/autocomplete", AutocompleteController, only: [:show], singleton: true
-      resources "/fetch", FetchController, only: [:index]
+    scope "/autocomplete", Autocomplete, as: :autocomplete do
+      resources "/tags", TagController, only: [:show], singleton: true
+    end
+
+    scope "/fetch", Fetch, as: :fetch do
+      resources "/tags", TagController, only: [:index]
     end
 
     resources "/tags", TagController, only: [:index, :show] do
@@ -482,6 +489,7 @@ defmodule PhilomenaWeb.Router do
 
     scope "/filters", Filter, as: :filter do
       resources "/current", CurrentController, only: [:update], singleton: true
+      resources "/clear_recent", ClearRecentController, only: [:delete], singleton: true
     end
 
     resources "/filters", FilterController do
@@ -494,8 +502,6 @@ defmodule PhilomenaWeb.Router do
       resources "/tag_changes", Profile.TagChangeController, only: [:index]
       resources "/source_changes", Profile.SourceChangeController, only: [:index]
     end
-
-    resources "/captchas", CaptchaController, only: [:create]
 
     scope "/posts", Post, as: :post do
       resources "/preview", PreviewController, only: [:create]

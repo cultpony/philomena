@@ -40,15 +40,17 @@ h1 Users
                   ' 2FA
 
               - user.role != "user" and !user.otp_required_for_login ->
-                span.banner__2fa.danger 
+                span.banner__2fa.danger
                   i.fas.fa-times>
                   ' 2FA
 
               - true ->
 
-          = if can_view_emails?(@conn) do
-            td
+          td
+            = if can?(@conn, :edit, Philomena.Users.User) do
               = user.email
+            - else
+              i N/A
 
           td
             = cond do
@@ -69,8 +71,10 @@ h1 Users
             = pretty_time user.created_at
 
           td
-            => link "Edit", to: Routes.admin_user_path(@conn, :edit, user)
-            ' &bull;
+            = if can?(@conn, :edit, user) do
+              => link to: Routes.admin_user_path(@conn, :edit, user) do
+                i.fa.fa-fw.fa-user-edit
+                ' Edit
 
             /= if user.deleted_at do
             /  => link_to 'Reactivate', admin_user_activation_path(user), data: { confirm: t('are_you_sure') }, method: :create
@@ -78,9 +82,14 @@ h1 Users
             /  => link_to 'Deactivate', admin_user_activation_path(user), data: { confirm: t('are_you_sure') }, method: :delete
             /' &bull;
 
-            => link "Ban", to: Routes.admin_user_ban_path(@conn, :new, username: user.name)
-            ' &bull;
-            => link "Add link", to: Routes.profile_user_link_path(@conn, :new, user)
+            = if can?(@conn, :index, Philomena.Bans.User) do
+              => link to: Routes.admin_user_ban_path(@conn, :new, username: user.name) do
+                i.fa.fa-fw.fa-ban
+                ' Ban
+            = if can?(@conn, :edit, Philomena.ArtistLinks.ArtistLink) do
+              => link to: Routes.profile_artist_link_path(@conn, :new, user) do
+                i.fa.fa-fw.fa-link
+                ' Add link
 
   .block__header.block__header--light
     = pagination

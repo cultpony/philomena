@@ -53,7 +53,7 @@ defmodule PhilomenaWeb.TextileRenderer do
     |> String.replace("--", "&mdash;")
     |> String.replace("...", "&hellip;")
     |> String.replace(~r|(\s)-(\s)|, "\\1&mdash;\\2")
-    |> String.replace("(tm)", "&tm;")
+    |> String.replace("(tm)", "&trade;")
     |> String.replace("(c)", "&copy;")
     |> String.replace("(r)", "&reg;")
     |> String.replace("&apos;", "&rsquo;")
@@ -121,7 +121,7 @@ defmodule PhilomenaWeb.TextileRenderer do
     Image
     |> where([i], i.id in ^ids)
     |> where([i], i.hidden_from_users == false)
-    |> preload(:tags)
+    |> preload(tags: :aliases)
     |> Repo.all()
     |> Map.new(&{&1.id, &1})
   end

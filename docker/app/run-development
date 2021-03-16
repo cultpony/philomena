@@ -1,5 +1,36 @@
 #!/bin/bash
 
+background() {
+  while :; do
+    mix run -e 'Philomena.Release.update_channels()'
+    mix run -e 'Philomena.Release.verify_artist_links()'
+    mix run -e 'Philomena.Release.update_stats()'
+
+    sleep 300
+  done
+}
+
+# Always install assets
+(
+cd /srv/philomena/assets
+# workaround for #31
+npm install || (chown -R root:root node_modules && npm install)
+)
+
+# Always install mix dependencies
+(cd /srv/philomena && mix deps.get)
+
+# Sleep to allow Elasticsearch to finish initializing
+# if it's not done doing whatever it does yet
+echo -n "Waiting for Elasticsearch"
+
+until wget -qO - elasticsearch:9200; do
+  echo -n "."
+  sleep 2
+done
+
+echo
+
 # Try to create the database if it doesn't exist yet
 if PGPASSWORD=$POSTGRES_PASSWORD psql -h $POSTGRES_HOST -U $POSTGRES_USER -lqt | cut -d \| -f 1 | grep -qw $POSTGRES_DB; then
   PGPASSWORD=$POSTGRES_PASSWORD dropdb -h $POSTGRES_HOST -U $POSTGRES_USER $POSTGRES_DB
@@ -14,5 +45,8 @@ fi
 mix reindex_all
 mix ecto.migrate
 
+# Run background jobs
+background &
+
 # Run the application
-mix phx.server
+START_WORKER=true mix phx.server

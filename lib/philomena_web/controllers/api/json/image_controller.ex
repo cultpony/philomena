@@ -7,10 +7,6 @@ defmodule PhilomenaWeb.Api.Json.ImageController do
   alias Philomena.Repo
   import Ecto.Query
 
-  plug PhilomenaWeb.LimitPlug,
-        [time: 30, error: ""]
-        when action in [:create]
-
   plug PhilomenaWeb.ScraperCachePlug
   plug PhilomenaWeb.ApiRequireAuthorizationPlug when action in [:create]
   plug PhilomenaWeb.IDValidationPlug when action in [:create]
@@ -25,7 +21,7 @@ defmodule PhilomenaWeb.Api.Json.ImageController do
     image =
       Image
       |> where(id: ^id)
-      |> preload([:tags, :user, :intensity])
+      |> preload([:user, :intensity, tags: :aliases])
       |> Repo.one()
 
     case image do
