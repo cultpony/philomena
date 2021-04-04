@@ -41,7 +41,6 @@ config :philomena,
 config :exq,
   max_retries: 5,
   scheduler_enable: true,
-  max_retries: 1,
   start_on_application: false,
   redis_host: "redis",
   host: "redis"

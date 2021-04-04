@@ -10,8 +10,6 @@ defmodule Philomena.Users.UserNotifier do
         subject: subject,
         text_body: body
       )
-      |> Email.put_header("Message-ID", gen_message_id())
-      |> Email.put_header("Date", gen_timestamp())
       |> Mailer.deliver_later()
 
     {:ok, email}
