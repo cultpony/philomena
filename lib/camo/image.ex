@@ -1,15 +1,18 @@
 defmodule Camo.Image do
   def image_url(input) do
-    %{host: host} = URI.parse(input)
+    uri = URI.parse(input)
 
-    if !host or String.ends_with?(host, cdn_host()) or is_nil(camo_key()) do
-      input
-    else
-      %{host: host} = URI.parse(input)
+    cond do
+      is_nil(uri.host) ->
+        ""
 
-      if !host or String.ends_with?(host, cdn_host()) do
+      is_nil(camo_key()) ->
         input
-      else
+
+      uri.host in [cdn_host(), camo_host()] ->
+        URI.to_string(%{uri | scheme: "https", port: 443})
+
+      true ->
         camo_digest = :crypto.hmac(:sha, camo_key(), input) |> Base.encode16(case: :lower)
 
         camo_uri = %URI{
@@ -20,7 +23,6 @@ defmodule Camo.Image do
         }
 
         URI.to_string(camo_uri)
-      end
     end
   end
 
